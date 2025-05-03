@@ -29,8 +29,8 @@ void handle_command(int client_socket, char* buffer) {
         exit(0);
     }
 
-    if (!key) {
-        snprintf(response, sizeof(response), "Invalid command\n");
+    if (!key && (strcmp(command, "GET") == 0 || strcmp(command, "DEL") == 0 || strcmp(command, "PUT") == 0)) {
+        snprintf(response, sizeof(response), "%s:missing_key\n", command);
         send(client_socket, response, strlen(response), 0);
         return;
     }
