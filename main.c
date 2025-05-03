@@ -1,11 +1,10 @@
 #include <stdio.h>
+#include "main.h"
+#include "keyValStore.h"
+#include "sub.h"
 
 int main() {
-    char name[20];
-
-    printf("Enter your name: ");
-    scanf("%s", name);
-    printf("Hey %s \n", name);
-
-    printf("test 19:00, 03.05.2025");
+    printf("Starte Socket-Server auf Port 5678...\n");
+    start_server(5678);
+    return 0;
 }
