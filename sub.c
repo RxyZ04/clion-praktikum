@@ -75,7 +75,8 @@ void start_server(int port) {
 
     while (1) {
         memset(buffer, 0, BUFFER_SIZE);
-        recv(client_socket, buffer, BUFFER_SIZE, 0);
+        ssize_t bytes = recv(client_socket, buffer, BUFFER_SIZE, 0);
+        if (bytes <= 0) break;
         handle_command(client_socket, buffer);
     }
 }
