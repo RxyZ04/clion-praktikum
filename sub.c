@@ -12,9 +12,9 @@
 
 void handle_command(int client_socket, char* buffer) {
     char response[BUFFER_SIZE];
-    char* command = strtok(buffer, " \n\r");
-    char* key = strtok(NULL, " \n\r");
-    char* value = strtok(NULL, " \n\r");
+    char* command = strtok(buffer, " \r\n");
+    char* key = strtok(NULL, " \r\n");
+    char* value = strtok(NULL, " \r\n");
 
     if (!command || !key) {
         snprintf(response, sizeof(response), "Invalid command\n");
@@ -54,7 +54,6 @@ void handle_command(int client_socket, char* buffer) {
     send(client_socket, response, strlen(response), 0);
 }
 
-
 void start_server(int port) {
     int server_fd, client_socket;
     struct sockaddr_in address;
@@ -68,6 +67,7 @@ void start_server(int port) {
     bind(server_fd, (struct sockaddr*)&address, sizeof(address));
     listen(server_fd, 1);
 
+    printf("Starte Socket-Server auf Port %d...\n", port);
     printf("Server gestartet auf Port %d\n", port);
 
     socklen_t addrlen = sizeof(address);
@@ -75,8 +75,13 @@ void start_server(int port) {
 
     while (1) {
         memset(buffer, 0, BUFFER_SIZE);
-        ssize_t bytes = recv(client_socket, buffer, BUFFER_SIZE, 0);
-        if (bytes <= 0) break;
+        ssize_t bytes_received = recv(client_socket, buffer, BUFFER_SIZE, 0);
+        if (bytes_received <= 0) break;
+
+        buffer[bytes_received] = '\0'; // sicherstellen, dass der String terminiert ist
         handle_command(client_socket, buffer);
     }
+
+    close(client_socket);
+    close(server_fd);
 }
