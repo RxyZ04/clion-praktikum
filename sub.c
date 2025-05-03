@@ -1,42 +1,54 @@
-#include "sub.h"
-#include "keyValStore.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <arpa/inet.h>
 #include <netinet/in.h>
+
+#include "keyValStore.h"
+#include "sub.h"
 
 #define BUFFER_SIZE 1024
 
-void handle_command(int client_socket, char *buffer) {
-    char command[5], key[100], value[100], response[BUFFER_SIZE];
-    memset(response, 0, BUFFER_SIZE);
+void handle_command(int client_socket, char* buffer) {
+    char* command = strtok(buffer, " \n");
+    char* key = strtok(NULL, " \n");
+    char* value = strtok(NULL, " \n");
+    char response[BUFFER_SIZE];
 
-    int args = sscanf(buffer, "%s %s %s", command, key, value);
+    if (command == NULL || key == NULL) {
+        snprintf(response, sizeof(response), "Invalid command\n");
+        send(client_socket, response, strlen(response), 0);
+        return;
+    }
 
-    if (strcmp(command, "PUT") == 0 && args == 3) {
-        put(key, value);
-        snprintf(response, BUFFER_SIZE, "PUT:%s:%s\n", key, value);
-    } else if (strcmp(command, "GET") == 0 && args >= 2) {
-        char result[100];
+    if (strcmp(command, "GET") == 0) {
+        char result[MAX_VALUE_LEN];
         if (get(key, result) == 0) {
-            snprintf(response, BUFFER_SIZE, "GET:%s:%s\n", key, result);
+            snprintf(response, sizeof(response), "GET:%s:%s\n", key, result);
         } else {
-            snprintf(response, BUFFER_SIZE, "GET:%s:key_nonexistent\n", key);
+            snprintf(response, sizeof(response), "GET:%s:key_nonexistent\n", key);
         }
-    } else if (strcmp(command, "DEL") == 0 && args >= 2) {
-        if (del(key) == 0) {
-            snprintf(response, BUFFER_SIZE, "DEL:%s:key_deleted\n", key);
+    } else if (strcmp(command, "PUT") == 0) {
+        if (value == NULL) {
+            snprintf(response, sizeof(response), "PUT:%s:missing_value\n", key);
         } else {
-            snprintf(response, BUFFER_SIZE, "DEL:%s:key_nonexistent\n", key);
+            put(key, value);
+            snprintf(response, sizeof(response), "PUT:%s:%s\n", key, value);
+        }
+    } else if (strcmp(command, "DEL") == 0) {
+        if (del(key) == 0) {
+            snprintf(response, sizeof(response), "DEL:%s:key_deleted\n", key);
+        } else {
+            snprintf(response, sizeof(response), "DEL:%s:key_nonexistent\n", key);
         }
     } else if (strcmp(command, "QUIT") == 0) {
-        snprintf(response, BUFFER_SIZE, "Connection closed.\n");
+        snprintf(response, sizeof(response), "Bye!\n");
         send(client_socket, response, strlen(response), 0);
         close(client_socket);
         exit(0);
     } else {
-        snprintf(response, BUFFER_SIZE, "Invalid command.\n");
+        snprintf(response, sizeof(response), "Unknown command\n");
     }
 
     send(client_socket, response, strlen(response), 0);
@@ -45,7 +57,6 @@ void handle_command(int client_socket, char *buffer) {
 void start_server(int port) {
     int server_fd, client_socket;
     struct sockaddr_in address;
-    socklen_t addrlen = sizeof(address);
     char buffer[BUFFER_SIZE];
 
     server_fd = socket(AF_INET, SOCK_STREAM, 0);
@@ -53,11 +64,13 @@ void start_server(int port) {
     address.sin_addr.s_addr = INADDR_ANY;
     address.sin_port = htons(port);
 
-    bind(server_fd, (struct sockaddr *)&address, sizeof(address));
+    bind(server_fd, (struct sockaddr*)&address, sizeof(address));
     listen(server_fd, 1);
 
     printf("Server gestartet auf Port %d\n", port);
-    client_socket = accept(server_fd, (struct sockaddr *)&address, &addrlen);
+
+    socklen_t addrlen = sizeof(address);
+    client_socket = accept(server_fd, (struct sockaddr*)&address, &addrlen);
 
     while (1) {
         memset(buffer, 0, BUFFER_SIZE);
