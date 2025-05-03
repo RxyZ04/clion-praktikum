@@ -7,5 +7,5 @@ int main() {
     scanf("%s", name);
     printf("Hey %s \n", name);
 
-    printf("test 18:55, 03.05.2025");
+    printf("test 19:00, 03.05.2025");
 }
