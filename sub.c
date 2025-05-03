@@ -11,12 +11,12 @@
 #define BUFFER_SIZE 1024
 
 void handle_command(int client_socket, char* buffer) {
-    char* command = strtok(buffer, " \n");
-    char* key = strtok(NULL, " \n");
-    char* value = strtok(NULL, " \n");
     char response[BUFFER_SIZE];
+    char* command = strtok(buffer, " \n\r");
+    char* key = strtok(NULL, " \n\r");
+    char* value = strtok(NULL, " \n\r");
 
-    if (command == NULL || key == NULL) {
+    if (!command || !key) {
         snprintf(response, sizeof(response), "Invalid command\n");
         send(client_socket, response, strlen(response), 0);
         return;
@@ -30,7 +30,7 @@ void handle_command(int client_socket, char* buffer) {
             snprintf(response, sizeof(response), "GET:%s:key_nonexistent\n", key);
         }
     } else if (strcmp(command, "PUT") == 0) {
-        if (value == NULL) {
+        if (!value) {
             snprintf(response, sizeof(response), "PUT:%s:missing_value\n", key);
         } else {
             put(key, value);
@@ -53,6 +53,7 @@ void handle_command(int client_socket, char* buffer) {
 
     send(client_socket, response, strlen(response), 0);
 }
+
 
 void start_server(int port) {
     int server_fd, client_socket;
