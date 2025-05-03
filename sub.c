@@ -85,6 +85,7 @@ void start_server(int port) {
     while (1) {
         memset(buffer, 0, BUFFER_SIZE);
         ssize_t bytes_received = recv(client_socket, buffer, BUFFER_SIZE, 0);
+        printf("Empfangen: %s\n", buffer);
         if (bytes_received <= 0) break;
 
         buffer[bytes_received] = '\0'; // sicherstellen, dass der String terminiert ist
