@@ -16,7 +16,20 @@ void handle_command(int client_socket, char* buffer) {
     char* key = strtok(NULL, " \r\n");
     char* value = strtok(NULL, " \r\n");
 
-    if (!command || !key) {
+    if (!command) {
+        snprintf(response, sizeof(response), "Invalid command\n");
+        send(client_socket, response, strlen(response), 0);
+        return;
+    }
+
+    if (strcmp(command, "QUIT") == 0) {
+        snprintf(response, sizeof(response), "Bye!\n");
+        send(client_socket, response, strlen(response), 0);
+        close(client_socket);
+        exit(0);
+    }
+
+    if (!key) {
         snprintf(response, sizeof(response), "Invalid command\n");
         send(client_socket, response, strlen(response), 0);
         return;
@@ -42,17 +55,13 @@ void handle_command(int client_socket, char* buffer) {
         } else {
             snprintf(response, sizeof(response), "DEL:%s:key_nonexistent\n", key);
         }
-    } else if (strcmp(command, "QUIT") == 0) {
-        snprintf(response, sizeof(response), "Bye!\n");
-        send(client_socket, response, strlen(response), 0);
-        close(client_socket);
-        exit(0);
     } else {
         snprintf(response, sizeof(response), "Unknown command\n");
     }
 
     send(client_socket, response, strlen(response), 0);
 }
+
 
 void start_server(int port) {
     int server_fd, client_socket;
