@@ -12,25 +12,14 @@
 
 void handle_command(int client_socket, char* buffer) {
     char response[BUFFER_SIZE];
+
+    // Nur EINMAL deklarieren!
     char* command = strtok(buffer, " \r\n");
-    char* key = strtok(NULL, " \r\n");
-    char* value = strtok(NULL, " \r\n");
+    char* key     = strtok(NULL, " \r\n");
+    char* value   = strtok(NULL, " \r\n");
 
-    if (!command) {
+    if (!command || !key) {
         snprintf(response, sizeof(response), "Invalid command\n");
-        send(client_socket, response, strlen(response), 0);
-        return;
-    }
-
-    if (strcmp(command, "QUIT") == 0) {
-        snprintf(response, sizeof(response), "Bye!\n");
-        send(client_socket, response, strlen(response), 0);
-        close(client_socket);
-        exit(0);
-    }
-
-    if (!key && (strcmp(command, "GET") == 0 || strcmp(command, "DEL") == 0 || strcmp(command, "PUT") == 0)) {
-        snprintf(response, sizeof(response), "%s:missing_key\n", command);
         send(client_socket, response, strlen(response), 0);
         return;
     }
@@ -55,13 +44,17 @@ void handle_command(int client_socket, char* buffer) {
         } else {
             snprintf(response, sizeof(response), "DEL:%s:key_nonexistent\n", key);
         }
+    } else if (strcmp(command, "QUIT") == 0) {
+        snprintf(response, sizeof(response), "Bye!\n");
+        send(client_socket, response, strlen(response), 0);
+        close(client_socket);
+        exit(0);
     } else {
         snprintf(response, sizeof(response), "Unknown command\n");
     }
 
     send(client_socket, response, strlen(response), 0);
 }
-
 
 void start_server(int port) {
     int server_fd, client_socket;
@@ -77,21 +70,25 @@ void start_server(int port) {
     listen(server_fd, 1);
 
     printf("Starte Socket-Server auf Port %d...\n", port);
-    printf("Server gestartet auf Port %d\n", port);
 
     socklen_t addrlen = sizeof(address);
     client_socket = accept(server_fd, (struct sockaddr*)&address, &addrlen);
 
+    printf("Client verbunden.\n");
+
     while (1) {
         memset(buffer, 0, BUFFER_SIZE);
-        ssize_t bytes_received = recv(client_socket, buffer, BUFFER_SIZE, 0);
-        printf("Empfangen: %s\n", buffer);
-        if (bytes_received <= 0) break;
+        ssize_t bytes = recv(client_socket, buffer, BUFFER_SIZE - 1, 0);
+        if (bytes <= 0) {
+            printf("[DEBUG] Verbindung getrennt oder Fehler.\n");
+            break;
+        }
 
-        buffer[bytes_received] = '\0'; // sicherstellen, dass der String terminiert ist
+        buffer[bytes] = '\0';  // Nullterminierung
+        printf("[DEBUG] Empfangen: %s\n", buffer);
+
         handle_command(client_socket, buffer);
     }
 
-    close(client_socket);
     close(server_fd);
 }

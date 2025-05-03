@@ -1,12 +1,12 @@
 #ifndef KEYVALSTORE_H
 #define KEYVALSTORE_H
 
-#define MAX_ITEMS 100
-#define MAX_KEY_LEN 50
-#define MAX_VALUE_LEN 100
+#define MAX_KEY_LEN 128
+#define MAX_VALUE_LEN 128
+#define MAX_PAIRS 100
 
-int put(char* key, char* value);
-int get(char* key, char* res);
-int del(char* key);
+int get(const char* key, char* result);
+int put(const char* key, const char* value);
+int del(const char* key);
 
 #endif
