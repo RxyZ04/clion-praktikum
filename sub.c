@@ -4,6 +4,8 @@
 #include <unistd.h>
 #include <arpa/inet.h>
 #include <netinet/in.h>
+#include <sys/wait.h>
+#include <signal.h>
 
 #include "keyValStore.h"
 #include "sub.h"
@@ -13,7 +15,6 @@
 void handle_command(int client_socket, char* buffer) {
     char response[BUFFER_SIZE];
 
-    // Nur EINMAL deklarieren!
     char* command = strtok(buffer, " \r\n");
     char* key     = strtok(NULL, " \r\n");
     char* value   = strtok(NULL, " \r\n");
@@ -56,39 +57,81 @@ void handle_command(int client_socket, char* buffer) {
     send(client_socket, response, strlen(response), 0);
 }
 
+void handle_sigchld(int sig) {
+    // Verwaiste Kindprozesse aufräumen
+    while (waitpid(-1, NULL, WNOHANG) > 0);
+}
+
 void start_server(int port) {
-    int server_fd, client_socket;
+    int server_fd;
     struct sockaddr_in address;
     char buffer[BUFFER_SIZE];
 
+    // Initialisiere Shared Memory
+    if (init_store() != 0) {
+        perror("Shared Memory init fehlgeschlagen");
+        exit(1);
+    }
+
+    signal(SIGCHLD, handle_sigchld); // Behandle beendete Kindprozesse
+
     server_fd = socket(AF_INET, SOCK_STREAM, 0);
+    if (server_fd == -1) {
+        perror("Socket-Erstellung fehlgeschlagen");
+        exit(1);
+    }
+
     address.sin_family = AF_INET;
     address.sin_addr.s_addr = INADDR_ANY;
     address.sin_port = htons(port);
 
-    bind(server_fd, (struct sockaddr*)&address, sizeof(address));
-    listen(server_fd, 1);
-
-    printf("Starte Socket-Server auf Port %d...\n", port);
-
-    socklen_t addrlen = sizeof(address);
-    client_socket = accept(server_fd, (struct sockaddr*)&address, &addrlen);
-
-    printf("Client verbunden.\n");
-
-    while (1) {
-        memset(buffer, 0, BUFFER_SIZE);
-        ssize_t bytes = recv(client_socket, buffer, BUFFER_SIZE - 1, 0);
-        if (bytes <= 0) {
-            printf("[DEBUG] Verbindung getrennt oder Fehler.\n");
-            break;
-        }
-
-        buffer[bytes] = '\0';  // Nullterminierung
-        printf("[DEBUG] Empfangen: %s\n", buffer);
-
-        handle_command(client_socket, buffer);
+    if (bind(server_fd, (struct sockaddr*)&address, sizeof(address)) < 0) {
+        perror("Bind fehlgeschlagen");
+        exit(1);
     }
 
+    listen(server_fd, 10);
+    printf("Multiclient-Server läuft auf Port %d...\n", port);
+
+    while (1) {
+        socklen_t addrlen = sizeof(address);
+        int client_socket = accept(server_fd, (struct sockaddr*)&address, &addrlen);
+        if (client_socket < 0) {
+            perror("Accept fehlgeschlagen");
+            continue;
+        }
+
+        pid_t pid = fork();
+        if (pid == 0) {
+            // Kindprozess
+            close(server_fd);
+            printf("Neuer Client verbunden (PID: %d)\n", getpid());
+
+            while (1) {
+                memset(buffer, 0, BUFFER_SIZE);
+                ssize_t bytes = recv(client_socket, buffer, BUFFER_SIZE - 1, 0);
+                if (bytes <= 0) {
+                    printf("[PID %d] Verbindung beendet.\n", getpid());
+                    break;
+                }
+
+                buffer[bytes] = '\0';
+                printf("[PID %d] Empfangen: %s\n", getpid(), buffer);
+
+                handle_command(client_socket, buffer);
+            }
+
+            close(client_socket);
+            detach_store();
+            exit(0);
+        } else if (pid > 0) {
+            // Elternprozess
+            close(client_socket);
+        } else {
+            perror("Fork fehlgeschlagen");
+        }
+    }
+
+    destroy_store(); // Nur bei Shutdown
     close(server_fd);
 }
