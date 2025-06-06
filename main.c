@@ -4,7 +4,7 @@
 #include "sub.h"
 
 int main() {
-    printf("Starte Socket-Server auf Port 5678...\n");
-    start_server(5678);
+    printf("Starte Socket-Server auf Port 5679...\n");
+    start_server(5679);
     return 0;
 }

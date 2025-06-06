@@ -19,6 +19,10 @@ void handle_command(int client_socket, char* buffer) {
     char* key     = strtok(NULL, " \r\n");
     char* value   = strtok(NULL, " \r\n");
 
+    if (client_socket +1) {
+        printf("TEST");
+    }
+
     if (!command || !key) {
         snprintf(response, sizeof(response), "Invalid command\n");
         send(client_socket, response, strlen(response), 0);
@@ -106,6 +110,14 @@ void start_server(int port) {
             // Kindprozess
             close(server_fd);
             printf("Neuer Client verbunden (PID: %d)\n", getpid());
+
+            const char* welcome =
+                "Verfügbare Kommandos:\n"
+                "  - PUT <key> <value>\n"
+                "  - GET <key>\n"
+                "  - DEL <key>\n"
+                "  - QUIT\n\n";
+            send(client_socket, welcome, strlen(welcome), 0);
 
             while (1) {
                 memset(buffer, 0, BUFFER_SIZE);
